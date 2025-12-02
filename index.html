@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JIET Ke Ninja</title>
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet">
+    <style>
+        /* Global Styles */
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Luckiest Guy', cursive;
+        }
+        
+        /* Canvas Styles */
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #1a2980, #26d0ce);
+        }
+        
+        /* Overlay Styles */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 10;
+        }
+        
+        .overlay h1 {
+            color: white;
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+            letter-spacing: 2px;
+        }
+        
+        .overlay p {
+            color: white;
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            text-shadow: 2px 2px 0 #000;
+        }
+        
+        /* Button Styles */
+        .btn {
+            background-color: #ff5722;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-family: 'Luckiest Guy', cursive;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #c41c00;
+            transition: all 0.1s;
+            text-shadow: 2px 2px 0 #000;
+        }
+        
+        .btn:hover, .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #c41c00;
+        }
+        
+        /* Game UI Styles */
+        .game-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 5;
+            pointer-events: none;
+        }
+        
+        /* CRITICAL: Updated font sizes and positioning */
+        .score {
+            color: white;
+            font-size: 2.2rem; /* Larger font for score */
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            white-space: nowrap;
+        }
+        
+        .lives {
+            color: white;
+            font-size: 1.8rem; /* Smaller font for lives */
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+            position: absolute;
+            top: 20px;
+            white-space: nowrap;
+        }
+        
+        /* Loading Screen */
+        #loadingOverlay {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 20;
+        }
+        
+        .loading-text {
+            color: white;
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+        
+        .progress-bar {
+            width: 300px;
+            height: 20px;
+            background-color: #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #ff5722;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        /* Hidden Class */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <!-- Updated game UI with different font sizes -->
+    <div class="game-ui">
+        <div class="score">Score: <span id="scoreValue">0</span></div>
+        <div class="lives">Lives: <span id="livesValue">3</span></div>
+    </div>
+    
+    <!-- LOADING OVERLAY - Only this should be visible during loading -->
+    <div id="loadingOverlay" class="overlay">
+        <h1>JIET KE NINJA</h1>
+        <div class="loading-text">LOADING JIET KE NINJA...</div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="loading-text" id="progressText">0%</div>
+    </div>
+    
+    <!-- START OVERLAY - Hidden until loading completes -->
+    <div id="startOverlay" class="overlay hidden">
+        <h1>JIET KE NINJA</h1>
+        <p>Slice the items, avoid the bombs!</p>
+        <button id="startBtn" class="btn">START GAME</button>
+    </div>
+    
+    <!-- GAME OVER OVERLAY - Hidden until game ends -->
+    <div id="gameOverOverlay" class="overlay hidden">
+        <h1>GAME OVER</h1>
+        <p>Your score: <span id="finalScore">0</span></p>
+        <button id="restartBtn" class="btn">TRY AGAIN</button>
+    </div>
+<script>
+    // Game Variables for Gandu Ninja
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const startOverlay = document.getElementById('startOverlay');
+    const gameOverOverlay = document.getElementById('gameOverOverlay');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const startBtn = document.getElementById('startBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const scoreValue = document.getElementById('scoreValue');
+    const livesValue = document.getElementById('livesValue');
+    const finalScore = document.getElementById('finalScore');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    
+    // CRITICAL: Get UI elements for positioning
+    const scoreElement = document.querySelector('.score');
+    const livesElement = document.querySelector('.lives');
+    
+    // Game State Constants
+    const STATE_LOADING = 'loading';
+    const STATE_MENU = 'menu';
+    const STATE_PLAYING = 'playing';
+    const STATE_GAME_OVER = 'gameover';
+    
+    // Initialize game state
+    let gameState = STATE_LOADING;
+    let score = 0;
+    let lives = 3;
+    let gameLoop;
+    
+    // Game Objects
+    let items = [];
+    let bombs = [];
+    let sliceTrail = [];
+    let isSlicing = false;
+    
+    // Sound Management
+    let currentSound = null;
+    
+    // Pre-loaded blade sound
+    let bladeSound = null;
+    
+    // Instagram icon variables
+    let instagramIcon = null;
+    const instagramIconSize = 40;
+    let instagramIconX = 0;
+    let instagramIconY = 20;
+    const instagramUrl = 'instagram://user?username=aditya.mundxy';
+    
+    // Dynamic Difficulty Variables
+    let difficultySettings = {
+        spawnRate: 2.5,
+        speedMultiplier: 1.0,
+        bombSpawnChance: 0.1,
+        maxItemsPerWave: 1,
+        currentLevel: 1
+    };
+    
+    // Game Settings
+    const gravity = 0.2;
+    const maxItems = 15;
+    const maxBombs = 5;
+    
+    // Spawn timing variables
+    let lastSpawnTime = 0;
+    
+    // Asset definitions
+    const itemTypes = [
+        { id: 'gojo', image: 'gojo.png', sound: 'gojo.mp3' },
+        { id: 'moho', image: 'moho.png', sound: 'moho.mp3' },
+        { id: 'nogif', image: 'nogif.png', sound: 'nogif.mp3' },
+        { id: 'botig', image: 'botig.png', sound: 'botig.mp3' },
+        { id: 'souo', image: 'souo.png', sound: 'souo.mp3' },
+        { id: 'aikof', image: 'aikof.png', sound: 'aikof.mp3' },
+        { id: 'eoyoh', image: 'eoyoh.png', sound: 'eoyoh.mp3' }
+    ];
+    
+    // Asset storage
+    const assets = {
+        images: {},
+        sounds: {}
+    };
+    
+    let assetsLoaded = 0;
+    let totalAssets = (itemTypes.length * 2) + 2;
+
+    // CRITICAL: Updated UI positioning with different font sizes
+    function updateUIPositions() {
+        // Score: Top-left at (20, 20) - Larger font (2.2rem)
+        scoreElement.style.position = 'absolute';
+        scoreElement.style.left = '20px';
+        scoreElement.style.top = '20px';
+        scoreElement.style.transform = 'none';
+        scoreElement.style.fontSize = '1.3rem';
+        
+        // Lives: Top-center - Smaller font (1.8rem) with precise centering
+        const livesText = `Lives: ${livesValue.textContent}`;
+        
+        // Use canvas context to measure text with the correct font size
+        ctx.font = '1.8rem "Luckiest Guy"';
+        const livesTextWidth = ctx.measureText(livesText).width;
+        const livesX = (canvas.width / 2) - (livesTextWidth / 2);
+        
+        livesElement.style.position = 'absolute';
+        livesElement.style.left = livesX + 'px';
+        livesElement.style.top = '20px';
+        livesElement.style.transform = 'none';
+        livesElement.style.fontSize = '1.8rem';
+        
+        console.log(`UI Positions - Score: (20, 20) [2.2rem], Lives: (${Math.round(livesX)}, 20) [1.8rem], Canvas width: ${canvas.width}`);
+        
+        // CRITICAL: Check for overlap and adjust if necessary
+        const scoreRect = scoreElement.getBoundingClientRect();
+        const livesRect = livesElement.getBoundingClientRect();
+        const minSpacing = 20; // Minimum spacing between elements
+        
+        if (livesRect.left < scoreRect.right + minSpacing) {
+            // If lives is too close to score, push it to the right
+            const newLivesX = scoreRect.right + minSpacing;
+            livesElement.style.left = newLivesX + 'px';
+            console.log(`Adjusted Lives position to avoid overlap: ${newLivesX}px`);
+        }
+    }
+
+    // Function to open Instagram URL
+    function openInstagram() {
+        console.log("Opening Instagram profile...");
+        window.open(instagramUrl, '_blank');
+    }
+
+    // Function to check if click/touch is on Instagram icon
+    function isClickOnInstagram(x, y) {
+        return (
+            x >= instagramIconX && 
+            x <= instagramIconX + instagramIconSize && 
+            y >= instagramIconY && 
+            y <= instagramIconY + instagramIconSize
+        );
+    }
+
+    // Function to draw Instagram icon
+    function drawInstagramIcon() {
+        if (instagramIcon) {
+            // Instagram icon - top-right at (canvas.width - iconSize - 20, 20)
+            instagramIconX = canvas.width - instagramIconSize - 20;
+            instagramIconY = 20;
+            
+            ctx.drawImage(instagramIcon, instagramIconX, instagramIconY, instagramIconSize, instagramIconSize);
+            
+            // CRITICAL: Check if Instagram icon overlaps with lives text
+            const livesRect = livesElement.getBoundingClientRect();
+            const minSpacing = 20;
+            
+            if (instagramIconX < livesRect.right + minSpacing) {
+                // If Instagram icon is too close to lives text, adjust lives position
+                const newLivesX = instagramIconX - livesRect.width - minSpacing;
+                if (newLivesX > 0) {
+                    livesElement.style.left = newLivesX + 'px';
+                    console.log(`Adjusted Lives position to avoid Instagram icon overlap: ${newLivesX}px`);
+                }
+            }
+        }
+    }
+
+    // Play blade sound function
+    function playBladeSound() {
+        if (bladeSound) {
+            const bladeSoundClone = bladeSound.cloneNode();
+            bladeSoundClone.volume = 0.6;
+            bladeSoundClone.play().catch(e => {
+                console.log("Blade sound play failed:", e);
+            });
+        }
+    }
+
+    // Sound interruption system for fruit sounds
+    function playSliceSound(sound) {
+        if (currentSound) {
+            currentSound.pause();
+            currentSound.currentTime = 0;
+        }
+        
+        if (sound) {
+            const soundClone = sound.cloneNode();
+            soundClone.volume = 0.7;
+            
+            soundClone.addEventListener('ended', () => {
+                if (currentSound === soundClone) {
+                    currentSound = null;
+                }
+            });
+            
+            soundClone.addEventListener('error', () => {
+                if (currentSound === soundClone) {
+                    currentSound = null;
+                }
+            });
+            
+            soundClone.play().catch(e => {
+                console.log("Fruit sound play failed:", e);
+                currentSound = null;
+            });
+            
+            currentSound = soundClone;
+        }
+    }
+
+    // Dynamic Difficulty Update Function
+    function updateDifficulty(currentScore) {
+        let newLevel = difficultySettings.currentLevel;
+        
+        if (currentScore >= 1000 && difficultySettings.currentLevel < 4) {
+            difficultySettings.spawnRate = 1.0;
+            difficultySettings.speedMultiplier = 1.6;
+            difficultySettings.bombSpawnChance = 0.20;
+            difficultySettings.maxItemsPerWave = 4;
+            newLevel = 4;
+        } else if (currentScore >= 500 && difficultySettings.currentLevel < 3) {
+            difficultySettings.spawnRate = 1.5;
+            difficultySettings.speedMultiplier = 1.4;
+            difficultySettings.bombSpawnChance = 0.15;
+            difficultySettings.maxItemsPerWave = 3;
+            newLevel = 3;
+        } else if (currentScore >= 200 && difficultySettings.currentLevel < 2) {
+            difficultySettings.spawnRate = 2.0;
+            difficultySettings.speedMultiplier = 1.2;
+            difficultySettings.maxItemsPerWave = 2;
+            newLevel = 2;
+        }
+        
+        if (newLevel !== difficultySettings.currentLevel) {
+            console.log(`Difficulty increased to Level ${newLevel}!`);
+            difficultySettings.currentLevel = newLevel;
+        }
+    }
+
+    // Asset loading function
+    function loadAssets() {
+        console.log("🚀 STARTING ASSET LOADING PROCESS...");
+        
+        let assetIndex = 0;
+        
+        // Load fruit images
+        console.log("\n🖼️  LOADING FRUIT IMAGES...");
+        itemTypes.forEach(item => {
+            assetIndex++;
+            console.log(`   [${assetIndex}/${totalAssets}] Loading image: ${item.image}`);
+            
+            const img = new Image();
+            img.onload = () => {
+                console.log(`   ✅ SUCCESS: ${item.image}`);
+                assets.images[item.id] = img;
+                assetLoaded();
+            };
+            img.onerror = () => {
+                console.error(`   ❌ FAILED: ${item.image} - FILE NOT FOUND OR CORRUPT`);
+                assets.images[item.id] = null;
+                assetLoaded();
+            };
+            img.src = item.image;
+        });
+        
+        // Load fruit sounds
+        console.log("\n🔊 LOADING FRUIT SOUNDS...");
+        itemTypes.forEach(item => {
+            assetIndex++;
+            console.log(`   [${assetIndex}/${totalAssets}] Loading sound: ${item.sound}`);
+            
+            const audio = new Audio();
+            audio.preload = 'auto';
+            
+            audio.oncanplaythrough = () => {
+                console.log(`   ✅ SUCCESS: ${item.sound}`);
+                assets.sounds[item.id] = audio;
+                assetLoaded();
+            };
+            audio.onerror = () => {
+                console.error(`   ❌ FAILED: ${item.sound} - FILE NOT FOUND OR CORRUPT`);
+                assets.sounds[item.id] = null;
+                assetLoaded();
+            };
+            
+            audio.src = item.sound;
+        });
+        
+        // Load blade sound
+        assetIndex++;
+        console.log(`\n🗡️  [${assetIndex}/${totalAssets}] Loading blade sound: Hikvi.mp3`);
+        const bladeAudio = new Audio();
+        bladeAudio.preload = 'auto';
+        
+        bladeAudio.oncanplaythrough = () => {
+            console.log(`   ✅ SUCCESS: Hikvi.mp3`);
+            bladeSound = bladeAudio;
+            assetLoaded();
+        };
+        bladeAudio.onerror = () => {
+            console.error(`   ❌ FAILED: Hikvi.mp3 - FILE NOT FOUND OR CORRUPT`);
+            bladeSound = null;
+            assetLoaded();
+        };
+        
+        bladeAudio.src = 'Hikvi.mp3';
+        
+        // Load Instagram icon
+        assetIndex++;
+        console.log(`\n📷 [${assetIndex}/${totalAssets}] Loading Instagram icon: instagram_icon.png`);
+        const instagramImg = new Image();
+        instagramImg.onload = () => {
+            console.log(`   ✅ SUCCESS: instagram_icon.png`);
+            instagramIcon = instagramImg;
+            assetLoaded();
+        };
+        instagramImg.onerror = () => {
+            console.error(`   ❌ FAILED: instagram_icon.png - FILE NOT FOUND OR CORRUPT`);
+            instagramIcon = null;
+            assetLoaded();
+        };
+        instagramImg.src = 'instagram_icon.png';
+    }
+    
+    // Asset loaded callback function
+    function assetLoaded() {
+        assetsLoaded++;
+        const progress = Math.round((assetsLoaded / totalAssets) * 100);
+        
+        console.log(`📈 PROGRESS: ${assetsLoaded}/${totalAssets} (${progress}%)`);
+        
+        // Update progress bar
+        progressFill.style.width = `${progress}%`;
+        progressText.textContent = `${progress}%`;
+        
+        if (assetsLoaded === totalAssets) {
+            console.log("🎉 ALL ASSETS LOADED SUCCESSFULLY!");
+            setTimeout(transitionToMenuState, 500);
+        }
+    }
+    
+    function transitionToMenuState() {
+        console.log("🏠 TRANSITIONING TO MENU STATE");
+        gameState = STATE_MENU;
+        loadingOverlay.classList.add('hidden');
+        startOverlay.classList.remove('hidden');
+        
+        // CRITICAL: Update UI positions when transitioning to menu
+        updateUIPositions();
+    }
+function handleStartGame() {
+    console.log("🎮 Start game button clicked");
+    if (gameState === STATE_MENU || gameState === STATE_GAME_OVER) {
+        startGame();
+    }
+}
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    // CRITICAL: Update UI positions when canvas resizes
+    updateUIPositions();
+}
+
+function init() {
+    console.log("🚀 INITIALIZING JIET KE NINJA...");
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Set up event listeners
+    setupEventListeners();
+    
+    // Start loading assets
+    loadAssets();
+}
+
+function setupEventListeners() {
+    startBtn.addEventListener('click', handleStartGame);
+    restartBtn.addEventListener('click', handleStartGame);
+    
+    // Input event listeners with blade sound on start
+    canvas.addEventListener('mousedown', function(e) {
+        const point = getInputPos(e);
+        if (isClickOnInstagram(point.x, point.y)) {
+            openInstagram();
+            return;
+        }
+        
+        startSlice(e);
+        playBladeSound();
+    });
+    
+    canvas.addEventListener('mousemove', updateSlice);
+    canvas.addEventListener('mouseup', endSlice);
+    canvas.addEventListener('mouseleave', endSlice);
+    
+    canvas.addEventListener('touchstart', function(e) {
+        const point = getInputPos(e);
+        if (isClickOnInstagram(point.x, point.y)) {
+            openInstagram();
+            e.preventDefault();
+            return;
+        }
+        
+        startSlice(e);
+        playBladeSound();
+    });
+    
+    canvas.addEventListener('touchmove', updateSlice);
+    canvas.addEventListener('touchend', endSlice);
+}
+
+function startGame() {
+    console.log("🎮 STARTING GAME...");
+    
+    // Reset game data
+    score = 0;
+    lives = 3;
+    items = [];
+    bombs = [];
+    sliceTrail = [];
+    isSlicing = false;
+    lastSpawnTime = 0;
+    
+    // Reset difficulty to easy settings
+    difficultySettings.spawnRate = 2.5;
+    difficultySettings.speedMultiplier = 1.0;
+    difficultySettings.bombSpawnChance = 0.1;
+    difficultySettings.maxItemsPerWave = 1;
+    difficultySettings.currentLevel = 1;
+    
+    // Stop any sounds
+    if (currentSound) {
+        currentSound.pause();
+        currentSound.currentTime = 0;
+        currentSound = null;
+    }
+    
+    // Update UI
+    scoreValue.textContent = score;
+    livesValue.textContent = lives;
+    
+    // CRITICAL: Update UI positions when starting game
+    updateUIPositions();
+    
+    // Hide all overlays
+    startOverlay.classList.add('hidden');
+    gameOverOverlay.classList.add('hidden');
+    loadingOverlay.classList.add('hidden');
+    
+    // Set game state
+    gameState = STATE_PLAYING;
+    
+    // Start game loop
+    if (gameLoop) {
+        cancelAnimationFrame(gameLoop);
+    }
+    gameLoop = requestAnimationFrame(update);
+}
+
+function gameOver() {
+    console.log("💀 GAME OVER");
+    gameState = STATE_GAME_OVER;
+    finalScore.textContent = score;
+    gameOverOverlay.classList.remove('hidden');
+    cancelAnimationFrame(gameLoop);
+    
+    // CRITICAL: Update UI positions when game over
+    updateUIPositions();
+}
+
+// Input handling functions
+function startSlice(e) {
+    if (gameState !== STATE_PLAYING) return;
+    e.preventDefault();
+    isSlicing = true;
+    sliceTrail = [];
+    
+    const point = getInputPos(e);
+    sliceTrail.push(point);
+    checkCollisions(point.x, point.y);
+}
+
+function updateSlice(e) {
+    if (gameState !== STATE_PLAYING || !isSlicing) return;
+    e.preventDefault();
+    
+    const point = getInputPos(e);
+    sliceTrail.push(point);
+    
+    if (sliceTrail.length > 15) {
+        sliceTrail.shift();
+    }
+    
+    checkCollisions(point.x, point.y);
+}
+
+function endSlice(e) {
+    if (gameState !== STATE_PLAYING) return;
+    e.preventDefault();
+    isSlicing = false;
+    
+    setTimeout(() => {
+        if (!isSlicing) sliceTrail = [];
+    }, 100);
+}
+
+function getInputPos(e) {
+    let x, y;
+    
+    if (e.type.includes('touch')) {
+        x = e.touches[0].clientX;
+        y = e.touches[0].clientY;
+    } else {
+        x = e.clientX;
+        y = e.clientY;
+    }
+    
+    const rect = canvas.getBoundingClientRect();
+    x -= rect.left;
+    y -= rect.top;
+    
+    return { x, y };
+}
+
+// Custom Item class
+class CustomItem {
+    constructor(type) {
+        this.type = type.id;
+        this.radius = 25 + Math.random() * 10;
+        this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
+        this.y = canvas.height + this.radius;
+        
+        this.velocityX = (Math.random() - 0.5) * 4 * difficultySettings.speedMultiplier;
+        this.velocityY = - (10 + Math.random() * 8) * difficultySettings.speedMultiplier;
+        
+        this.image = assets.images[type.id];
+        this.sound = assets.sounds[type.id];
+        this.isSliced = false;
+        this.slicedParts = [];
+        this.rotation = 0;
+        this.rotationSpeed = (Math.random() - 0.5) * 0.1;
+    }
+    
+    update() {
+        this.velocityY += gravity;
+        this.x += this.velocityX;
+        this.y += this.velocityY;
+        this.rotation += this.rotationSpeed;
+        
+        if (this.x < this.radius || this.x > canvas.width - this.radius) {
+            this.velocityX *= -0.8;
+            this.x = this.x < this.radius ? this.radius : canvas.width - this.radius;
+        }
+        
+        if (this.isSliced) {
+            for (let part of this.slicedParts) {
+                part.velocityY += gravity;
+                part.x += part.velocityX;
+                part.y += part.velocityY;
+                part.rotation += part.rotationSpeed;
+            }
+        }
+    }
+    
+    draw() {
+        if (this.isSliced) {
+            for (let part of this.slicedParts) {
+                ctx.save();
+                ctx.translate(part.x, part.y);
+                ctx.rotate(part.rotation);
+                
+                if (part.image) {
+                    ctx.drawImage(part.image, -this.radius/2, -this.radius/2, this.radius, this.radius);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius/2, 0, Math.PI * 2);
+                    ctx.fillStyle = this.getFallbackColor();
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            }
+        } else {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.rotation);
+            
+            if (this.image) {
+                ctx.drawImage(this.image, -this.radius, -this.radius, this.radius * 2, this.radius * 2);
+            } else {
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.getFallbackColor();
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(-this.radius/3, -this.radius/3, this.radius/3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fill();
+            }
+            
+            ctx.restore();
+        }
+    }
+    
+    getFallbackColor() {
+        const colors = ['#FF5252', '#FF9800', '#FFEB3B', '#4CAF50', '#2196F3', '#9C27B0', '#795548'];
+        const index = itemTypes.findIndex(item => item.id === this.type);
+        return colors[index] || '#FF5722';
+    }
+    
+    slice() {
+        if (!this.isSliced) {
+            this.isSliced = true;
+            playSliceSound(this.sound);
+            
+            this.slicedParts = [
+                { 
+                    x: this.x, y: this.y, velocityX: -3, velocityY: -5,
+                    rotation: this.rotation, rotationSpeed: -0.1, image: this.image
+                },
+                { 
+                    x: this.x, y: this.y, velocityX: 3, velocityY: -5,
+                    rotation: this.rotation, rotationSpeed: 0.1, image: this.image
+                }
+            ];
+            
+            return true;
+        }
+        return false;
+    }
+    
+    isOffScreen() {
+        if (this.isSliced) {
+            return this.slicedParts.every(part => part.y > canvas.height + this.radius);
+        }
+        return this.y > canvas.height + this.radius;
+    }
+}
+// Bomb class
+class Bomb {
+    constructor() {
+        this.radius = 25;
+        this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
+        this.y = canvas.height + this.radius;
+        
+        this.velocityX = (Math.random() - 0.5) * 3 * difficultySettings.speedMultiplier;
+        this.velocityY = - (8 + Math.random() * 6) * difficultySettings.speedMultiplier;
+        
+        this.type = 'bomb';
+    }
+    
+    update() {
+        this.velocityY += gravity;
+        this.x += this.velocityX;
+        this.y += this.velocityY;
+        
+        if (this.x < this.radius || this.x > canvas.width - this.radius) {
+            this.velocityX *= -0.8;
+            this.x = this.x < this.radius ? this.radius : canvas.width - this.radius;
+        }
+    }
+    
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#333';
+        ctx.fill();
+        ctx.closePath();
+        
+        ctx.beginPath();
+        ctx.moveTo(this.x + this.radius/2, this.y - this.radius/2);
+        ctx.lineTo(this.x + this.radius, this.y - this.radius);
+        ctx.lineTo(this.x + this.radius/1.5, this.y - this.radius/1.2);
+        ctx.strokeStyle = '#8B4513';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.closePath();
+        
+        ctx.beginPath();
+        ctx.arc(this.x + this.radius, this.y - this.radius, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFD700';
+        ctx.fill();
+        ctx.closePath();
+    }
+    
+    isOffScreen() {
+        return this.y > canvas.height + this.radius;
+    }
+}
+
+// Game loop with UI position updates
+function update(timestamp) {
+    if (gameState !== STATE_PLAYING) {
+        // Still draw Instagram icon even when not playing
+        if (gameState === STATE_MENU || gameState === STATE_GAME_OVER) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background for menu/game over screens
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#1a2980');
+            gradient.addColorStop(1, '#26d0ce');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw Instagram icon
+            drawInstagramIcon();
+        }
+        return;
+    }
+    
+    // Clear and draw background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, '#1a2980');
+    gradient.addColorStop(1, '#26d0ce');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // CRITICAL: Update UI positions in case of window resize during gameplay
+    updateUIPositions();
+    
+    // Wave-based spawning using difficulty settings
+    if (!lastSpawnTime) lastSpawnTime = timestamp;
+    const timeSinceLastSpawn = (timestamp - lastSpawnTime) / 1000;
+    
+    if (timeSinceLastSpawn >= difficultySettings.spawnRate) {
+        spawnWave();
+        lastSpawnTime = timestamp;
+    }
+    
+    // Update and draw items
+    for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        item.update();
+        item.draw();
+        
+        if (item.isOffScreen() && !item.isSliced) {
+            items.splice(i, 1);
+            lives--;
+            livesValue.textContent = lives;
+            
+            // CRITICAL: Update UI positions when lives change
+            updateUIPositions();
+            
+            if (lives <= 0) {
+                gameOver();
+                return;
+            }
+        } else if (item.isOffScreen()) {
+            items.splice(i, 1);
+        }
+    }
+    
+    // Update and draw bombs
+    for (let i = bombs.length - 1; i >= 0; i--) {
+        const bomb = bombs[i];
+        bomb.update();
+        bomb.draw();
+        
+        if (bomb.isOffScreen()) {
+            bombs.splice(i, 1);
+        }
+    }
+    
+    // Draw slice trail
+    drawSliceTrail();
+    
+    // Draw Instagram icon on top of everything
+    drawInstagramIcon();
+    
+    // Continue game loop
+    gameLoop = requestAnimationFrame(update);
+}
+
+function spawnWave() {
+    const itemsToSpawn = Math.min(
+        difficultySettings.maxItemsPerWave,
+        maxItems - items.length,
+        maxBombs - bombs.length
+    );
+    
+    for (let i = 0; i < itemsToSpawn; i++) {
+        if (Math.random() < difficultySettings.bombSpawnChance && bombs.length < maxBombs) {
+            bombs.push(new Bomb());
+        } else if (items.length < maxItems) {
+            const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+            items.push(new CustomItem(randomType));
+        }
+    }
+}
+
+function drawSliceTrail() {
+    if (sliceTrail.length < 2) return;
+    
+    ctx.beginPath();
+    ctx.moveTo(sliceTrail[0].x, sliceTrail[0].y);
+    
+    for (let i = 1; i < sliceTrail.length; i++) {
+        ctx.lineTo(sliceTrail[i].x, sliceTrail[i].y);
+    }
+    
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.closePath();
+}
+    function checkCollisions(x, y) {
+        // Check items
+        for (let i = items.length - 1; i >= 0; i--) {
+            const item = items[i];
+            
+            if (!item.isSliced) {
+                const dx = x - item.x;
+                const dy = y - item.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < item.radius) {
+                    if (item.slice()) {
+                        score += 10;
+                        scoreValue.textContent = score;
+                        
+                        // CRITICAL: Update UI positions when score changes
+                        updateUIPositions();
+                        
+                        updateDifficulty(score);
+                    }
+                }
+            }
+        }
+        
+        // Check bombs
+        for (let i = bombs.length - 1; i >= 0; i--) {
+            const bomb = bombs[i];
+            
+            const dx = x - bomb.x;
+            const dy = y - bomb.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < bomb.radius) {
+                createExplosion(bomb.x, bomb.y);
+                gameOver();
+                return;
+            }
+        }
+    }
+    
+    function createExplosion(x, y) {
+        ctx.beginPath();
+        ctx.arc(x, y, 50, 0, Math.PI * 2);
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 50);
+        gradient.addColorStop(0, 'rgba(255, 100, 0, 0.8)');
+        gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        ctx.closePath();
+        
+        for (let i = 0; i < 10; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 10 + Math.random() * 40;
+            const particleX = x + Math.cos(angle) * distance;
+            const particleY = y + Math.sin(angle) * distance;
+            
+            ctx.beginPath();
+            ctx.arc(particleX, particleY, 3 + Math.random() * 5, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, ${150 + Math.random() * 100}, 0, 0.8)`;
+            ctx.fill();
+            ctx.closePath();
+        }
+    }
+    
+    // Initialize game
+    window.addEventListener('load', init);
+</script>
+</body>
+</html>
